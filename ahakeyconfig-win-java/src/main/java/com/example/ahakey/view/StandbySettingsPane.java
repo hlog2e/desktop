@@ -149,9 +149,8 @@ public final class StandbySettingsPane {
                     current.setText(currentText(value));
                     supported.set(true);
                     busy.set(false);
-                    status.setText(text(localize("已通过 "), "Connected over ")
-                        + (bleManager.isUsbConnected() ? "USB" : "BLE")
-                        + text(localize(" 读取成功。"), "."));
+                    status.setText(text(localize("已通过 %s 读取成功。"), "Connected over %s.")
+                        .formatted(bleManager.isUsbConnected() ? "USB" : "BLE"));
                 });
             } catch (Exception exception) {
                 Platform.runLater(() -> {
