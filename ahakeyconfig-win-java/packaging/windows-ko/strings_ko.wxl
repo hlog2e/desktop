@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Select Korean WixUIExtension dialogs and the Korean MSI code page.
+     JDK 17 supplies its own English strings: do not duplicate their IDs. -->
+<WixLocalization Culture="ko-kr" xmlns="http://schemas.microsoft.com/wix/2006/localization" Codepage="949" />

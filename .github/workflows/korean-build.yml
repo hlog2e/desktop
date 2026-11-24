@@ -1,0 +1,142 @@
+name: Korean build (Windows + macOS)
+
+# Builds the Korean Windows client and the macOS app of this fork.
+# Branch pushes upload workflow artifacts; a `ko-v<x.y.z>` tag also publishes a
+# GitHub Release whose asset names stay fixed, so README links to
+# releases/latest/download/<asset> keep working.
+on:
+  push:
+    branches: [main, korean-windows]
+    tags: ["ko-v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: korean-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    name: Windows · Korean client
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve package version
+        id: version
+        shell: pwsh
+        run: |
+          if ("${{ github.ref_type }}" -eq "tag") {
+            $v = "${{ github.ref_name }}" -replace '^ko-v', ''
+          } else {
+            [xml]$pom = Get-Content ahakeyconfig-win-java/pom.xml -Raw
+            $v = [string]$pom.project.version
+          }
+          if ($v -notmatch '^\d+\.\d+\.\d+$') { throw "Tag must look like ko-v1.2.3, got $v" }
+          "value=$v" >> $env:GITHUB_OUTPUT
+
+      - name: JDK 17 with JavaFX
+        uses: actions/setup-java@v4
+        with:
+          distribution: liberica
+          java-version: "17"
+          java-package: jdk+fx
+          cache: maven
+
+      - uses: microsoft/setup-msbuild@v2
+
+      - name: Build BLE driver
+        shell: pwsh
+        run: |
+          msbuild BLE_tcp_bridge/BLE_tcp_driver.csproj /restore /p:Configuration=Release /p:Platform=AnyCPU /v:minimal
+          if ($LASTEXITCODE -ne 0) { throw "BLE driver build failed" }
+          Get-Item BLE_tcp_bridge/bin/Release/BLE_tcp_driver.exe
+
+      - name: Test and package Java client
+        working-directory: ahakeyconfig-win-java
+        run: mvn -B -q clean package
+
+      - name: Install WiX 3
+        shell: pwsh
+        run: |
+          choco install wixtoolset --version 3.14.1 -y --no-progress
+          $bin = Get-ChildItem "${env:ProgramFiles(x86)}" -Directory -Filter "WiX Toolset v3*" | Select-Object -First 1
+          if (-not $bin) { throw "WiX not found after install" }
+          "WIX_BIN=$($bin.FullName)\bin" >> $env:GITHUB_ENV
+
+      - name: Build portable app and Korean setup
+        working-directory: ahakeyconfig-win-java
+        shell: pwsh
+        run: |
+          $out = ./build-korean-windows.ps1 -JdkHome $env:JAVA_HOME -WixBin $env:WIX_BIN -PackageVersion "${{ steps.version.outputs.value }}" -OutputRoot "$env:RUNNER_TEMP\ko"
+          $out
+          $dir = ($out | Where-Object { $_ -like 'BUILD_DIRECTORY=*' }) -replace '^BUILD_DIRECTORY=', ''
+          New-Item -ItemType Directory -Force -Path "$env:RUNNER_TEMP\dist" | Out-Null
+          Copy-Item "$dir\AhaKey-Studio-Korean-Windows-Portable.zip" "$env:RUNNER_TEMP\dist\"
+          Copy-Item "$dir\AhaKey-Studio-Korean-Setup.exe" "$env:RUNNER_TEMP\dist\"
+          Get-ChildItem "$env:RUNNER_TEMP\dist"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: ${{ runner.temp }}/dist/*
+          if-no-files-found: error
+
+  macos:
+    name: macOS · app
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build universal app (ad-hoc signed)
+        working-directory: ahakeyconfig-mac
+        env:
+          BUILD_ARCHS: "arm64 x86_64"
+          SIGNING_IDENTITY: "-"
+          OUTPUT_DIR: ${{ runner.temp }}/mac
+          APP_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || '0.0.0' }}
+        run: |
+          export APP_VERSION="${APP_VERSION#ko-v}"
+          zsh scripts/build.sh
+
+      - name: Make DMG
+        run: |
+          stage="$RUNNER_TEMP/dmg"
+          mkdir -p "$stage" "$RUNNER_TEMP/dist"
+          ditto "$RUNNER_TEMP/mac/AhaKey Studio.app" "$stage/AhaKey Studio.app"
+          ln -s /Applications "$stage/Applications"
+          hdiutil create -volname "AhaKey Studio" -srcfolder "$stage" -ov -format UDZO "$RUNNER_TEMP/dist/AhaKey-Studio-macOS.dmg"
+          ls -la "$RUNNER_TEMP/dist"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: ${{ runner.temp }}/dist/*
+          if-no-files-found: error
+
+  release:
+    name: Publish release
+    if: github.ref_type == 'tag'
+    needs: [windows, macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls -la dist
+          gh release create "${{ github.ref_name }}" dist/* \
+            --repo "${{ github.repository }}" \
+            --title "AhaKey Studio 한국어판 ${{ github.ref_name }}" \
+            --notes "Windows 한국어판 설치 파일과 포터블 버전, macOS 앱이에요. 사용법은 저장소 README를 보세요." \
+            --latest
