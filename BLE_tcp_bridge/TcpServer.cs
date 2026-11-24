@@ -51,7 +51,7 @@ namespace BLE_tcp_driver
             // 订阅BLE通知, 转发给所有TCP客户端
             _bleCore.ReceiveNotifyData += OnBleNotify;
 
-            Log($"TCP服务器已启动, 监听端口: {_port}");
+            Log($"TCP 서버 시작: 포트 {_port}");
             Task.Run(() => AcceptLoop());
         }
 
@@ -70,7 +70,7 @@ namespace BLE_tcp_driver
                 _clients.Clear();
             }
             OnClientCountChanged?.Invoke(0);
-            Log("TCP服务器已停止");
+            Log("TCP 서버를 멈췄어요");
         }
 
         /// <summary>
@@ -86,7 +86,7 @@ namespace BLE_tcp_driver
                     lock (_clientLock) _clients.Add(client);
 
                     string ep = GetEndpointString(client);
-                    Log($"TCP客户端已连接: {ep}");
+                    Log($"TCP 클라이언트 연결됨: {ep}");
                     OnClientCountChanged?.Invoke(ClientCount);
 
                     var _ = Task.Run(() => ClientLoop(client));
@@ -95,7 +95,7 @@ namespace BLE_tcp_driver
                 catch (SocketException) { if (!_running) break; }
                 catch (Exception ex)
                 {
-                    if (_running) Log($"接受连接异常: {ex.Message}");
+                    if (_running) Log($"연결 받기 오류: {ex.Message}");
                 }
             }
         }
@@ -135,7 +135,7 @@ namespace BLE_tcp_driver
             catch (IOException) { }
             catch (SocketException) { }
             catch (ObjectDisposedException) { }
-            catch (Exception ex) { Log($"客户端处理异常: {ex.Message}"); }
+            catch (Exception ex) { Log($"클라이언트 처리 오류: {ex.Message}"); }
             finally
             {
                 RemoveClient(client);
@@ -157,10 +157,10 @@ namespace BLE_tcp_driver
                             _bleCore.WriteDataToCharacterstuc(_bleCore.CurrentDataCharacteristic, data.Skip(i).Take(Math.Min(data.Count() - i, 200)).ToArray());
                         }
                         //_bleCore.WriteDataToCharacterstuc(_bleCore.CurrentDataCharacteristic, data ?? new byte[0]);
-                        Log($"→BLE数据(0x7341) [{data?.Length ?? 0}字节]");
+                        Log($"→BLE 데이터(0x7341) [{data?.Length ?? 0}바이트]");
                     }
                     else
-                        Log("BLE数据特征(0x7341)未就绪");
+                        Log("BLE 데이터 특성(0x7341)이 준비되지 않았어요");
                     break;
 
                 case PacketType.WriteCommand:
@@ -176,27 +176,27 @@ namespace BLE_tcp_driver
                             _bleCore.WriteDataToCharacterstuc(_bleCore.CurrentWriteCharacteristic, data.Skip(i).Take(Math.Min(data.Count() - i, 20)).ToArray());
                         }
                         //_bleCore.WriteDataToCharacterstuc(_bleCore.CurrentWriteCharacteristic, data ?? new byte[0]);
-                        Log($"→BLE命令(0x7343) [{data?.Length ?? 0}字节]");
+                        Log($"→BLE 명령(0x7343) [{data?.Length ?? 0}바이트]");
                     }
                     else
-                        Log("BLE命令特征(0x7343)未就绪");
+                        Log("BLE 명령 특성(0x7343)이 준비되지 않았어요");
                     break;
 
                 case PacketType.QueryBleStatus:
                     var status = BuildBleStatus();
                     SendToClient(client, ProtocolHelper.BuildBleStatusPacket(status));
-                    Log("响应BLE状态查询");
+                    Log("BLE 상태 조회에 응답했어요");
                     break;
 
                 case PacketType.QueryDeviceInfo:
                     DeviceStatusInfo info;
                     lock (_statusLock) info = _deviceStatus;
                     SendToClient(client, ProtocolHelper.BuildDeviceInfoPacket(info));
-                    Log("响应设备信息查询");
+                    Log("기기 정보 조회에 응답했어요");
                     break;
 
                 default:
-                    Log($"未知包类型: 0x{(byte)type:X2}");
+                    Log($"알 수 없는 패킷 종류: 0x{(byte)type:X2}");
                     break;
             }
         }
@@ -243,9 +243,9 @@ namespace BLE_tcp_driver
             {
                 var newStatus = ProtocolHelper.ParseDeviceStatusFromNotification(data);
                 lock (_statusLock) _deviceStatus = newStatus;
-                Log($"设备状态更新: 电量={newStatus.BatteryLevel} 信号={newStatus.SignalStrength} " +
-                    $"固件={newStatus.FirmwareVersionMain}.{newStatus.FirmwareVersionSub} " +
-                    $"工作模式={newStatus.WorkMode} 灯光={newStatus.LightMode} 开关={newStatus.SwitchState}");
+                Log($"키보드 상태 업데이트: 배터리={newStatus.BatteryLevel} 신호={newStatus.SignalStrength} " +
+                    $"펌웨어={newStatus.FirmwareVersionMain}.{newStatus.FirmwareVersionSub} " +
+                    $"키보드 모드={newStatus.WorkMode} 조명={newStatus.LightMode} 스위치={newStatus.SwitchState}");
                 return;
             }
 
@@ -284,7 +284,7 @@ namespace BLE_tcp_driver
             if (removed)
             {
                 string ep = GetEndpointString(client);
-                Log($"TCP客户端已断开: {ep}");
+                Log($"TCP 클라이언트 연결이 끊겼어요: {ep}");
                 try { client.Close(); } catch { }
                 OnClientCountChanged?.Invoke(ClientCount);
             }

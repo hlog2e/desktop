@@ -47,6 +47,13 @@ namespace BLE_tcp_driver
 
         private void log(Color c, string message)
         {
+            log(c, message, DriverLog.Info);
+        }
+
+        private void log(Color c, string message, string level)
+        {
+            DriverLog.Write(level, message);
+            if (!IsHandleCreated || IsDisposed) return;
             BeginInvoke(new Action(() =>
             {
                 rtbMsg.SelectionColor = c;
@@ -86,16 +93,16 @@ namespace BLE_tcp_driver
 
             // 启动TCP服务器
             tcpServer = new TcpServer(bleCore, config.ServerPort);
-            tcpServer.OnLog += (msg) => log(Color.DarkCyan, "[TCP] " + msg);
+            tcpServer.OnLog += (msg) => log(Color.DarkCyan, "[TCP] " + msg, TcpLogLevel(msg));
             tcpServer.OnClientCountChanged += (count) =>
             {
                 BeginInvoke(new Action(() =>
                 {
-                    label_ip_port.Text = $"TCP服务: {TcpServer.GetLocalIPAddress()}:{config.ServerPort} (客户端:{count})";
+                    label_ip_port.Text = $"TCP 서버: {TcpServer.GetLocalIPAddress()}:{config.ServerPort} (클라이언트: {count})";
                 }));
             };
             tcpServer.Start();
-            label_ip_port.Text = $"TCP服务: {TcpServer.GetLocalIPAddress()}:{config.ServerPort} (客户端:0)";
+            label_ip_port.Text = $"TCP 서버: {TcpServer.GetLocalIPAddress()}:{config.ServerPort} (클라이언트: 0)";
 
             // 重试定时器 (UI线程Timer)
             retryTimer = new Timer();
@@ -105,11 +112,11 @@ namespace BLE_tcp_driver
             // 自动开始扫描
             devicesList = new List<DeviceInformation>();
             bleCore.StartBleDeviceWatcher();
-            log(Color.Blue, "自动扫描蓝牙设备中...");
+            log(Color.Blue, "블루투스 기기를 찾는 중...");
 
             if (config.HasSavedDevice)
             {
-                log(Color.Blue, $"目标设备: {config.BleName} [{config.BleMac}]");
+                log(Color.Blue, $"저장된 키보드: {config.BleName} [{config.BleMac}]");
                 retryTimer.Start();
             }
         }
@@ -127,13 +134,13 @@ namespace BLE_tcp_driver
 
             try { bleCore.StopBleDeviceWatcher(); } catch { }
             bleCore.StartBleDeviceWatcher();
-            log(Color.Gray, "重新扫描蓝牙设备...");
+            log(Color.Gray, "블루투스 기기를 다시 찾는 중...");
         }
 
         private void WriteDataSuccess(GattCharacteristic sender, byte[] data)
         {
             UTF8Encoding utf8 = new UTF8Encoding();
-            log(Color.FromArgb(0x00ff00FF), Utilities.ConvertUuidToShortId(sender.Uuid).ToString() + "write :" + utf8.GetString(data));
+            log(Color.FromArgb(0x00ff00FF), Utilities.ConvertUuidToShortId(sender.Uuid).ToString() + " 보냄: " + utf8.GetString(data), DriverLog.Debug);
         }
 
         private void ReceiveNotifyData(GattCharacteristic sender, byte[] data)
@@ -141,14 +148,14 @@ namespace BLE_tcp_driver
             if (ProtocolHelper.IsDeviceStatusNotification(data))
             {
                 var info = ProtocolHelper.ParseDeviceStatusFromNotification(data);
-                log(Color.DarkGreen, $"设备状态: 电量={info.BatteryLevel} 信号={info.SignalStrength} " +
-                    $"固件={info.FirmwareVersionMain}.{info.FirmwareVersionSub} " +
-                    $"模式={info.WorkMode} 灯光={info.LightMode} 开关={info.SwitchState}");
+                log(Color.DarkGreen, $"키보드 상태: 배터리={info.BatteryLevel} 신호={info.SignalStrength} " +
+                    $"펌웨어={info.FirmwareVersionMain}.{info.FirmwareVersionSub} " +
+                    $"모드={info.WorkMode} 조명={info.LightMode} 스위치={info.SwitchState}");
             }
             else
             {
                 log(Color.FromArgb(0x00ff0000), Utilities.ConvertUuidToShortId(sender.Uuid).ToString() +
-                    "receive :" + BitConverter.ToString(data));
+                    " 받음: " + BitConverter.ToString(data), DriverLog.Debug);
             }
         }
 
@@ -171,7 +178,7 @@ namespace BLE_tcp_driver
                         string.Equals(mac, config.BleMac, StringComparison.OrdinalIgnoreCase))
                     {
                         autoConnecting = true;
-                        log(Color.Blue, "发现目标设备, 自动连接...");
+                        log(Color.Blue, "저장된 키보드를 찾았어요. 자동으로 연결해요...");
                         try { bleCore.StopBleDeviceWatcher(); } catch { }
                         bleCore.ConnectDeviceByInfo(deviceInformation);
                     }
@@ -183,8 +190,8 @@ namespace BLE_tcp_driver
         {
             BeginInvoke(new Action(() =>
             {
-                log(Color.FromArgb(0x00ff00FF), "Connected:" + bluetoothLEDevice.Name);
-                label_connected_devices.Text = "当前连接设备:" + bluetoothLEDevice.Name;
+                log(Color.FromArgb(0x00ff00FF), "키보드에 연결했어요: " + bluetoothLEDevice.Name);
+                label_connected_devices.Text = "연결된 키보드: " + bluetoothLEDevice.Name;
                 retryTimer.Stop();
                 autoConnecting = false;
                 targetConfirmed = false;
@@ -195,13 +202,13 @@ namespace BLE_tcp_driver
         {
             BeginInvoke(new Action(() =>
             {
-                log(Color.Red, "Disconnected:" + (bluetoothLEDevice?.Name ?? ""));
-                label_connected_devices.Text = "当前连接设备:无";
+                log(Color.Red, "키보드 연결이 끊겼어요: " + (bluetoothLEDevice?.Name ?? ""), DriverLog.Warn);
+                label_connected_devices.Text = "연결된 키보드: 없음";
                 autoConnecting = false;
 
                 if (config.HasSavedDevice)
                 {
-                    log(Color.Gray, "将在数秒后尝试重连...");
+                    log(Color.Gray, "잠시 후 다시 연결해요...");
                     retryTimer.Start();
                 }
             }));
@@ -212,24 +219,24 @@ namespace BLE_tcp_driver
             BeginInvoke(new Action(() =>
             {
                 ushort shortId = Utilities.ConvertUuidToShortId(gattCharacteristic.Uuid);
-                log(Color.Black, "Chara:0x" + shortId.ToString("X") +
-                    ", des:" + gattCharacteristic.UserDescription);
+                log(Color.Black, "특성: 0x" + shortId.ToString("X") +
+                    ", 설명: " + gattCharacteristic.UserDescription, DriverLog.Debug);
 
                 if (shortId == 0x7341)
                 {
                     bleCore.CurrentDataCharacteristic = gattCharacteristic;
-                    log(Color.Green, "  → 数据特征(0x7341)已就绪");
+                    log(Color.Green, "  → 데이터 특성(0x7341) 준비됨");
                 }
                 if (shortId == 0x7343)
                 {
                     bleCore.CurrentWriteCharacteristic = gattCharacteristic;
-                    log(Color.Green, "  → 命令特征(0x7343)已就绪");
+                    log(Color.Green, "  → 명령 특성(0x7343) 준비됨");
                 }
                 if (shortId == 0x7344)
                 {
                     bleCore.CurrentNotifyCharacteristic = gattCharacteristic;
                     bleCore.EnableNotifications(gattCharacteristic);
-                    log(Color.Green, "  → 通知特征(0x7344)已就绪");
+                    log(Color.Green, "  → 알림 특성(0x7344) 준비됨");
                 }
 
                 // 所有目标特征就绪 → 确认为目标设备, 保存配置 (仅触发一次)
@@ -239,21 +246,21 @@ namespace BLE_tcp_driver
                     && bleCore.CurrentNotifyCharacteristic != null)
                 {
                     targetConfirmed = true;
-                    log(Color.Blue, "目标设备已确认, 所有特征就绪");
+                    log(Color.Blue, "키보드를 확인했어요. 모든 특성이 준비됐어요");
                     SaveCurrentDeviceToConfig();
 
                     // 自动向命令特征写入设备状态查询指令
                     bleCore.WriteDataToCharacterstuc(
                         bleCore.CurrentWriteCharacteristic,
                         ProtocolHelper.DeviceStatusQueryCommand);
-                    log(Color.Blue, "已发送设备状态查询指令");
+                    log(Color.Blue, "키보드 상태 조회 명령을 보냈어요");
 
                     if (ProtocolHelper.LastClaudeState !=  null)
                     {
                         bleCore.WriteDataToCharacterstuc(
                             bleCore.CurrentWriteCharacteristic,
                             ProtocolHelper.LastClaudeState);
-                        log(Color.Blue, "已发送设置claude状态指令");
+                        log(Color.Blue, "Claude 상태 설정 명령을 보냈어요");
                     }
                 }
             }));
@@ -274,14 +281,14 @@ namespace BLE_tcp_driver
 
                 if (!allFound)
                 {
-                    string devName = bleCore.CurrentDevice?.Name ?? "未知";
-                    log(Color.OrangeRed, $"设备 [{devName}] 未找齐目标UUID, 断开连接");
+                    string devName = bleCore.CurrentDevice?.Name ?? "알 수 없음";
+                    log(Color.OrangeRed, $"기기 [{devName}]에서 필요한 UUID를 모두 찾지 못해 연결을 끊어요", DriverLog.Warn);
                     bleCore.Dispose();
-                    label_connected_devices.Text = "当前连接设备:无";
+                    label_connected_devices.Text = "연결된 키보드: 없음";
 
                     if (config.HasSavedDevice)
                     {
-                        log(Color.Gray, "将继续尝试查找目标设备...");
+                        log(Color.Gray, "저장된 키보드를 계속 찾아요...");
                         retryTimer.Start();
                     }
                 }
@@ -302,7 +309,7 @@ namespace BLE_tcp_driver
             config.BleName = bleCore.CurrentDevice.Name;
             config.BleMac = mac;
             config.Save();
-            log(Color.Blue, $"已保存设备: {config.BleName} [{config.BleMac}]");
+            log(Color.Blue, $"키보드를 저장했어요: {config.BleName} [{config.BleMac}]");
         }
 
         private void BtnConnect_Click(object sender, EventArgs e)
@@ -345,13 +352,13 @@ namespace BLE_tcp_driver
         {
             ContextMenu contextMenu = new ContextMenu();
 
-            System.Windows.Forms.MenuItem cutItem = new System.Windows.Forms.MenuItem("剪切");
+            System.Windows.Forms.MenuItem cutItem = new System.Windows.Forms.MenuItem("잘라내기");
             cutItem.Click += (sender, eventArgs) => textBox.Cut();
 
-            System.Windows.Forms.MenuItem copyItem = new System.Windows.Forms.MenuItem("复制");
+            System.Windows.Forms.MenuItem copyItem = new System.Windows.Forms.MenuItem("복사");
             copyItem.Click += (sender, eventArgs) => textBox.Copy();
 
-            System.Windows.Forms.MenuItem pasteItem = new System.Windows.Forms.MenuItem("粘贴");
+            System.Windows.Forms.MenuItem pasteItem = new System.Windows.Forms.MenuItem("붙여넣기");
             pasteItem.Click += (sender, eventArgs) => textBox.Paste();
 
             contextMenu.MenuItems.Add(cutItem);
@@ -426,12 +433,30 @@ namespace BLE_tcp_driver
             }
             catch (Exception ex)
             {
-                MessageBox.Show("设置开机自启动失败: " + ex.Message, "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                DriverLog.LogError("Windows 시작 시 실행 설정 실패: " + ex.Message);
+                MessageBox.Show("Windows 시작 시 실행을 설정하지 못했어요: " + ex.Message, "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 // 还原 checkbox 状态
                 checkBox_follow_system.CheckedChanged -= checkBox_follow_system_CheckedChanged;
                 checkBox_follow_system.Checked = !checkBox_follow_system.Checked;
                 checkBox_follow_system.CheckedChanged += checkBox_follow_system_CheckedChanged;
             }
+        }
+
+        /// <summary>
+        /// TCP 日志级别 (异常 → ERROR, 未就绪/断开 → WARN, 数据转发 → DEBUG)
+        /// </summary>
+        private static string TcpLogLevel(string msg)
+        {
+            if (string.IsNullOrEmpty(msg)) return DriverLog.Info;
+            if (msg.IndexOf("오류", StringComparison.Ordinal) >= 0) return DriverLog.Error;
+            if (msg.IndexOf("준비되지 않았어요", StringComparison.Ordinal) >= 0
+                || msg.IndexOf("알 수 없는", StringComparison.Ordinal) >= 0
+                || msg.IndexOf("끊겼어요", StringComparison.Ordinal) >= 0) return DriverLog.Warn;
+            if (msg.StartsWith("→BLE", StringComparison.Ordinal)
+                || msg.StartsWith("BLE 상태 조회에 응답", StringComparison.Ordinal)
+                || msg.StartsWith("기기 정보 조회에 응답", StringComparison.Ordinal))
+                return DriverLog.Debug;
+            return DriverLog.Info;
         }
 
         private const string AutoStartKeyName = "BLE_tcp_driver";

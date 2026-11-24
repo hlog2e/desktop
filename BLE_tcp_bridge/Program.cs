@@ -119,6 +119,17 @@ namespace BLE_tcp_driver
         /// </summary>
         private string CurrentDeviceMAC { get; set; }
 
+        /// <summary>
+        /// 最近一次连接时间 (诊断用)
+        /// </summary>
+        private DateTime? _lastConnectTime;
+
+        /// <summary>
+        /// GATT 会话 (仅用于记录诊断日志, 不改变连接行为)
+        /// </summary>
+        private GattSession _gattSession;
+        private readonly object _sessionLock = new object();
+
 
         public BleCore()
         {
@@ -131,7 +142,7 @@ namespace BLE_tcp_driver
         /// <param name="args"></param>
         private void DeviceWatcher_Added(DeviceWatcher sender, DeviceInformation args)
         {
-            Console.WriteLine("发现设备:" + args.Id + "Name:" + args.Name);
+            Console.WriteLine("기기 발견: " + args.Id + " 이름: " + args.Name);
             _deviceList.Add(args);
             DeviceAdded?.Invoke(args);
             //Console.WriteLine("Pairing:" + args.Pairing.IsPaired );
@@ -143,7 +154,7 @@ namespace BLE_tcp_driver
             //        {
             //            Progame.ConnectDevice(asyncInfo.GetResults());
             //            //GattCommunicationStatus a = asyncInfo.GetResults();
-            //            //Console.WriteLine("发送数据：" + BitConverter.ToString(data) + " State : " + a);
+            //            //Console.WriteLine("데이터 보냄: " + BitConverter.ToString(data) + " 결과: " + a);
             //            //Progame.sendOk = 1;
             //        }
             //    };
@@ -157,12 +168,24 @@ namespace BLE_tcp_driver
         /// <param name="args"></param>
         public void ConnectDeviceByInfo(DeviceInformation args)
         {
-            Console.WriteLine("连接设备:" + args.Id + "Name:" + args.Name);
+            Console.WriteLine("연결 시작: " + args.Id + " 이름: " + args.Name);
             var res = BluetoothLEDevice.FromIdAsync(args.Id).Completed = (asyncInfo, asyncStatus) =>
             {
                 if (asyncStatus == AsyncStatus.Completed)
                 {
-                    ConnectDevice(asyncInfo.GetResults());
+                    BluetoothLEDevice device = asyncInfo.GetResults();
+                    if (device == null)
+                    {
+                        DriverLog.LogError("BluetoothLEDevice.FromIdAsync 결과가 없어요: " + args.Id);
+                        return;
+                    }
+                    ConnectDevice(device);
+                }
+                else
+                {
+                    string detail = "";
+                    try { if (asyncInfo.ErrorCode != null) detail = " 오류: " + asyncInfo.ErrorCode.Message; } catch { }
+                    DriverLog.LogError("BluetoothLEDevice.FromIdAsync 상태: " + asyncStatus + detail);
                 }
             };
         }
@@ -179,6 +202,9 @@ namespace BLE_tcp_driver
 
             CurrentDevice = Device;
             CurrentDevice.ConnectionStatusChanged += CurrentDevice_ConnectionStatusChanged;
+            _lastConnectTime = DateTime.Now;
+            LogDeviceDetails(Device);
+            OpenGattSession(Device);
             ConnectDeviceSuccess?.Invoke(Device);
             FindService(CurrentDevice);
         }
@@ -206,7 +232,7 @@ namespace BLE_tcp_driver
             watcher.Stopped += (DeviceWatcher sender, object arg) => { };
             watcher.Added += DeviceWatcher_Added;
             watcher.Start();
-            Console.WriteLine("自动发现设备中..");
+            Console.WriteLine("기기를 찾는 중...");
         }
 
         /// <summary>
@@ -226,6 +252,7 @@ namespace BLE_tcp_driver
             CurrentDeviceMAC = null;
             if (CurrentDevice != null)
                 CurrentDevice.ConnectionStatusChanged -= CurrentDevice_ConnectionStatusChanged;
+            CloseGattSession();
             CurrentService?.Dispose();
             CurrentDevice?.Dispose();
             CurrentDevice = null;
@@ -233,7 +260,7 @@ namespace BLE_tcp_driver
             CurrentWriteCharacteristic = null;
             CurrentDataCharacteristic = null;
             CurrentNotifyCharacteristic = null;
-            Console.WriteLine("主动断开连接");
+            Console.WriteLine("키보드 연결을 직접 끊었어요");
         }
 
         /// <summary>
@@ -258,18 +285,18 @@ namespace BLE_tcp_driver
                     if (asyncStatus == AsyncStatus.Completed)
                     {
                         GattCommunicationStatus a = asyncInfo.GetResults();
-                        Console.WriteLine("发送数据：" + BitConverter.ToString(data) + " State : " + a);
+                        Console.WriteLine("데이터 보냄: " + BitConverter.ToString(data) + " 결과: " + a);
                         WriteDataSuccess?.Invoke(CurrentWriteCharacteristic, data);
                     }
                     else
                     {
-                        Console.WriteLine("ERROR");
+                        Console.WriteLine("데이터를 보내지 못했어요 (" + asyncStatus + ")");
                     }
                 };
             }
             else
             {
-                Console.WriteLine("当前没有设置写服务特征");
+                Console.WriteLine("쓰기 특성이 없어요");
             }
 
         }
@@ -286,14 +313,18 @@ namespace BLE_tcp_driver
                     if (asyncStatus == AsyncStatus.Completed)
                     {
                         GattCommunicationStatus a = asyncInfo.GetResults();
-                        Console.WriteLine("发送数据：" + BitConverter.ToString(data) + " State : " + a);
+                        Console.WriteLine("데이터 보냄: " + BitConverter.ToString(data) + " 결과: " + a);
                         WriteDataSuccess?.Invoke(c, data);
+                    }
+                    else
+                    {
+                        Console.WriteLine("데이터를 보내지 못했어요 (" + asyncStatus + ")");
                     }
                 };
             }
             else
             {
-                Console.WriteLine("当前没有设置写服务特征");
+                Console.WriteLine("쓰기 특성이 없어요");
             }
 
         }
@@ -309,14 +340,14 @@ namespace BLE_tcp_driver
                         var test = asyncInfo.GetResults().Value;
                         byte[] data;
                         CryptographicBuffer.CopyToByteArray(test, out data);
-                        Console.WriteLine("读取数据：" + BitConverter.ToString(data) + " State : " + asyncInfo.GetResults());
+                        Console.WriteLine("데이터 읽음: " + BitConverter.ToString(data) + " 결과: " + asyncInfo.GetResults().Status);
                         ReadDataSuccess?.Invoke(c, data);
                     }
                 };
             }
             else
             {
-                Console.WriteLine("当前没有设置写服务特征");
+                Console.WriteLine("쓰기 특성이 없어요");
             }
 
         }
@@ -331,8 +362,9 @@ namespace BLE_tcp_driver
                 {
                     if (asyncStatus == AsyncStatus.Completed)
                     {
-                        var services = asyncInfo.GetResults().Services;
-                        Console.WriteLine("GattServices size=" + services.Count);
+                        var servicesResult = asyncInfo.GetResults();
+                        var services = servicesResult.Services;
+                        Console.WriteLine("GATT 서비스 검색 결과: " + servicesResult.Status + " 개수: " + services.Count);
                         CharacteristicList.Clear();
 
                         for (int i = 0; i < services.Count; i++)
@@ -354,11 +386,15 @@ namespace BLE_tcp_driver
                         }
                         CharacteristicFinish?.Invoke(services.Count);
                     }
+                    else
+                    {
+                        Console.WriteLine("GATT 서비스를 찾지 못했어요 (" + asyncStatus + ")");
+                    }
                 };
             }
             else
             {
-                Console.WriteLine("当前没有打开设备");
+                Console.WriteLine("연결된 키보드가 없어요");
             }
 
         }
@@ -394,7 +430,7 @@ namespace BLE_tcp_driver
             Array.Reverse(_Bytes1);
             this.CurrentDeviceMAC = BitConverter.ToString(_Bytes1, 2, 6).Replace('-', ':').ToLower();
 
-            string msg = "正在连接设备<" + this.CurrentDeviceMAC + ">..";
+            string msg = "키보드에 연결하는 중 <" + this.CurrentDeviceMAC + ">...";
             Console.WriteLine(msg);
 
             if (gattCharacteristic.CharacteristicProperties == GattCharacteristicProperties.Write)
@@ -458,12 +494,18 @@ namespace BLE_tcp_driver
             {
                 if (asyncStatus == AsyncStatus.Completed)
                 {
-                    var characteristics = asyncInfo.GetResults().Characteristics;
+                    var characteristicsResult = asyncInfo.GetResults();
+                    var characteristics = characteristicsResult.Characteristics;
+                    Console.WriteLine("특성 검색 결과: 서비스 " + gattDeviceService.Uuid + " " + characteristicsResult.Status + " 개수: " + characteristics.Count);
                     foreach (var c in characteristics)
                     {
                         CharacteristicList.Add(c);
                         this.CharacteristicAdded?.Invoke(c);
                     }
+                }
+                else
+                {
+                    Console.WriteLine("특성을 찾지 못했어요: 서비스 " + gattDeviceService.Uuid + " (" + asyncStatus + ")");
                 }
 
                 if (Interlocked.Decrement(ref _pendingServiceCount) == 0)
@@ -504,23 +546,161 @@ namespace BLE_tcp_driver
             }
             catch (Exception e)
             {
-                string msg = "没有发现设备" + e.ToString();
+                string msg = "키보드를 찾지 못했어요: " + e.ToString();
                 Console.WriteLine(msg);
                 this.StartBleDeviceWatcher();
             }
         }
 
 
+        private static string FormatAddress(BluetoothLEDevice device)
+        {
+            try
+            {
+                if (device == null) return "";
+                return "0x" + device.BluetoothAddress.ToString("X12");
+            }
+            catch { return ""; }
+        }
+
+        /// <summary>
+        /// 记录连接设备的底层信息 (诊断用)
+        /// </summary>
+        private void LogDeviceDetails(BluetoothLEDevice device)
+        {
+            try
+            {
+                if (device == null) return;
+                DriverLog.LogInfo("[BLE] 연결한 기기: 이름: " + device.Name
+                    + " 주소: " + FormatAddress(device)
+                    + " DeviceId: " + device.DeviceId
+                    + " ConnectionStatus: " + device.ConnectionStatus);
+            }
+            catch (Exception ex)
+            {
+                DriverLog.LogWarn("[BLE] 기기 정보를 읽지 못했어요: " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// 获取 GattSession 并订阅事件, 只记录日志, 不设置 MaintainConnection
+        /// </summary>
+        private void OpenGattSession(BluetoothLEDevice device)
+        {
+            CloseGattSession();
+            try
+            {
+                if (device == null) return;
+                GattSession.FromDeviceIdAsync(device.BluetoothDeviceId).Completed = (asyncInfo, asyncStatus) =>
+                {
+                    try
+                    {
+                        if (asyncStatus != AsyncStatus.Completed)
+                        {
+                            DriverLog.LogWarn("[BLE] GattSession을 열지 못했어요 (" + asyncStatus + ")");
+                            return;
+                        }
+                        GattSession session = asyncInfo.GetResults();
+                        if (session == null)
+                        {
+                            DriverLog.LogWarn("[BLE] GattSession 결과가 없어요");
+                            return;
+                        }
+                        if (!object.ReferenceEquals(CurrentDevice, device))
+                        {
+                            // 设备已切换, 丢弃旧会话
+                            try { session.Dispose(); } catch { }
+                            return;
+                        }
+                        session.SessionStatusChanged += GattSession_SessionStatusChanged;
+                        session.MaxPduSizeChanged += GattSession_MaxPduSizeChanged;
+                        lock (_sessionLock)
+                        {
+                            _gattSession = session;
+                        }
+                        DriverLog.LogInfo("[BLE] GattSession: SessionStatus: " + session.SessionStatus
+                            + " MaxPduSize: " + session.MaxPduSize
+                            + " MaintainConnection: " + session.MaintainConnection
+                            + " CanMaintainConnection: " + session.CanMaintainConnection);
+                    }
+                    catch (Exception ex)
+                    {
+                        DriverLog.LogWarn("[BLE] GattSession 처리 중 오류: " + ex.Message);
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                DriverLog.LogWarn("[BLE] GattSession을 열지 못했어요: " + ex.Message);
+            }
+        }
+
+        private void CloseGattSession()
+        {
+            try
+            {
+                GattSession old;
+                lock (_sessionLock)
+                {
+                    old = _gattSession;
+                    _gattSession = null;
+                }
+                if (old != null)
+                {
+                    old.SessionStatusChanged -= GattSession_SessionStatusChanged;
+                    old.MaxPduSizeChanged -= GattSession_MaxPduSizeChanged;
+                    old.Dispose();
+                }
+            }
+            catch (Exception ex)
+            {
+                DriverLog.LogWarn("[BLE] GattSession을 닫지 못했어요: " + ex.Message);
+            }
+        }
+
+        private void GattSession_SessionStatusChanged(GattSession sender, GattSessionStatusChangedEventArgs args)
+        {
+            try
+            {
+                string elapsed = "알 수 없음";
+                if (_lastConnectTime.HasValue)
+                    elapsed = ((long)(DateTime.Now - _lastConnectTime.Value).TotalMilliseconds) + "ms";
+                DriverLog.Write(args.Status == GattSessionStatus.Closed ? DriverLog.Warn : DriverLog.Info,
+                    "[BLE] SessionStatus 변경: " + args.Status + " Error: " + args.Error + " (연결 후 " + elapsed + ")");
+            }
+            catch { }
+        }
+
+        private void GattSession_MaxPduSizeChanged(GattSession sender, object args)
+        {
+            try
+            {
+                DriverLog.LogInfo("[BLE] MaxPduSize 변경: " + sender.MaxPduSize);
+            }
+            catch { }
+        }
+
         private void CurrentDevice_ConnectionStatusChanged(BluetoothLEDevice sender, object args)
         {
-            if (sender.ConnectionStatus == BluetoothConnectionStatus.Disconnected)
+            BluetoothConnectionStatus status = sender.ConnectionStatus;
+            string elapsed = "알 수 없음";
+            try
             {
-                Console.WriteLine("设备已断开");
+                if (_lastConnectTime.HasValue)
+                    elapsed = ((long)(DateTime.Now - _lastConnectTime.Value).TotalMilliseconds) + "ms";
+            }
+            catch { }
+            DriverLog.Write(status == BluetoothConnectionStatus.Disconnected ? DriverLog.Warn : DriverLog.Info,
+                "[BLE] ConnectionStatus 변경: " + status + " (연결 후 " + elapsed + ") 주소: " + FormatAddress(sender));
+
+            if (status == BluetoothConnectionStatus.Disconnected)
+            {
+                Console.WriteLine("키보드 연결이 끊겼어요");
                 DeviceDisconnected?.Invoke(sender);
             }
             else
             {
-                Console.WriteLine("设备已连接");
+                Console.WriteLine("키보드에 연결했어요");
             }
         }
 
@@ -531,7 +711,7 @@ namespace BLE_tcp_driver
         /// <returns></returns>
         public void EnableNotifications(GattCharacteristic characteristic)
         {
-            Console.WriteLine("收通知对象=" + CurrentDevice.Name + ":" + CurrentDevice.ConnectionStatus);
+            Console.WriteLine("알림 켜기: " + CurrentDevice.Name + " 상태: " + CurrentDevice.ConnectionStatus);
             characteristic.WriteClientCharacteristicConfigurationDescriptorAsync(CHARACTERISTIC_NOTIFICATION_TYPE).Completed = (asyncInfo, asyncStatus) =>
             {
                 if (asyncStatus == AsyncStatus.Completed)
@@ -539,7 +719,7 @@ namespace BLE_tcp_driver
                     GattCommunicationStatus status = asyncInfo.GetResults();
                     if (status == GattCommunicationStatus.Unreachable)
                     {
-                        Console.WriteLine("设备不可用");
+                        Console.WriteLine("키보드에 닿지 않아요 (알림 켜기 결과: Unreachable)");
                         if (CurrentNotifyCharacteristic != null && !asyncLock)
                         {
                             this.EnableNotifications(CurrentNotifyCharacteristic);
@@ -551,7 +731,11 @@ namespace BLE_tcp_driver
                         CurrentNotifyCharacteristic.ValueChanged += Characteristic_ValueChanged;
                     }
                     asyncLock = false;
-                    Console.WriteLine("设备连接状态" + status);
+                    Console.WriteLine("알림 켜기 결과: " + status);
+                }
+                else
+                {
+                    Console.WriteLine("알림을 켜지 못했어요 (" + asyncStatus + ")");
                 }
             };
         }
@@ -611,6 +795,8 @@ namespace BLE_tcp_driver
         [STAThread]
         static void Main()
         {
+            DriverLog.RedirectConsole();
+            DriverLog.LogInfo("BLE 드라이버 시작");
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new Form1());

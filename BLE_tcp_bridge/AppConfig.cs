@@ -39,7 +39,7 @@ namespace BLE_tcp_driver
             }
             catch (Exception ex)
             {
-                Console.WriteLine("配置文件读取失败: " + ex.Message);
+                Console.WriteLine("설정 파일을 읽지 못했어요: " + ex.Message);
                 return CreateDefault();
             }
         }
@@ -60,7 +60,7 @@ namespace BLE_tcp_driver
             }
             catch (Exception ex)
             {
-                Console.WriteLine("配置文件保存失败: " + ex.Message);
+                Console.WriteLine("설정 파일을 저장하지 못했어요: " + ex.Message);
             }
         }
 
