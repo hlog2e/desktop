@@ -1611,3 +1611,11 @@ command excluded these platform tests explicitly and skipped the PowerShell pack
 No Windows-only test was removed; the read-only-DLL deletion test now declares its Windows OS
 requirement. Windows CI/full packaging, installer execution and real device verification remain
 separate from the successful local portable checks. No firmware or device configuration was written.
+
+## 한국어 포크 (hlog2e/desktop)
+
+- 언어: `ko` 추가. `messages_ko.properties`(키 문구), `legacy_ko.properties`(중국어 원문 → 한국어, `localize()`와 연결 기록 창의 로그 문장), 맑은 고딕(`KoreanFontSupport`, `style_ko.css`). `KoreanCatalogTest`가 번역이 빠진 `localize()` 문구를 막는다. 도구: `tools/i18n/ko_catalog.py`.
+- 연결 기록: `diagnostics/ConnectionLog`가 앱 로그(logback), USB/BLE로 주고받은 프레임, BLE 드라이버 로그를 모아 `더 보기 → 연결 기록` 창(`view/ConnectionLogWindow`)에 보여 주고 `%LOCALAPPDATA%\AhaKeyStudio\logs\connection-YYYY-MM-DD.log`에 남긴다. BLE 드라이버는 `ble-driver-YYYY-MM-DD.log`를 같은 폴더에 쓴다(`DriverLog.cs`).
+- 업데이트: `-Dahakey.koreanBuild=true` 빌드는 ahakey.com 설치 파일을 받지 않고 이 포크의 GitHub 릴리스만 확인한다(`update/KoreanReleaseCheck`).
+- 패키징: `build-korean-windows.ps1`, `.github/workflows/korean-build.yml`. 앱 이름 `AhaKeyStudioKR`, 별도 업그레이드 UUID와 레지스트리 키로 공식 설치본과 섞이지 않는다.
+- 검증: macOS에서 Maven 시험(Windows 전용 PowerShell 시험 제외)과 GitHub Actions Windows 빌드. 실제 키보드 연결과 BLE 드라이버의 새 로그는 실기기에서 아직 확인하지 않았다.
