@@ -60,10 +60,11 @@ jobs:
         working-directory: ahakeyconfig-win-java
         run: mvn -B -q clean package
 
-      - name: Install WiX 3
+      - name: Find or install WiX 3
         shell: pwsh
         run: |
-          choco install wixtoolset --version 3.14.1 -y --no-progress
+          $bin = Get-ChildItem "${env:ProgramFiles(x86)}" -Directory -Filter "WiX Toolset v3*" | Select-Object -First 1
+          if (-not $bin) { choco install wixtoolset -y --no-progress }
           $bin = Get-ChildItem "${env:ProgramFiles(x86)}" -Directory -Filter "WiX Toolset v3*" | Select-Object -First 1
           if (-not $bin) { throw "WiX not found after install" }
           "WIX_BIN=$($bin.FullName)\bin" >> $env:GITHUB_ENV
