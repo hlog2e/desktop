@@ -1,77 +1,61 @@
-<div align="center">
+# AhaKey Studio 한국어판
 
-# ⌨️ AhaKey Desktop
+AhaKey-X1(Vibecoding Keyboard)을 설정하는 프로그램 [AhaKey Studio](https://github.com/AhakeyAI/desktop)의 한국어 포크예요. Windows 앱의 모든 화면을 한국어로 옮겼고, 블루투스 연결이 끊길 때 원인을 볼 수 있는 연결 기록 창을 더했어요.
 
-**The official cross-platform desktop suite for the AhaKey-X1 — the Vibecoding Keyboard.**
+## 내려받기
 
-[**English**](README.md) &nbsp;·&nbsp; [**简体中文**](docs/zh/README.md)
+| 운영체제 | 파일 | 설명 |
+|---|---|---|
+| Windows 10/11 (64비트) | [**설치 파일 (.exe)**](https://github.com/hlog2e/desktop/releases/latest/download/AhaKey-Studio-Korean-Setup.exe) | 설치하면 시작 메뉴와 바탕화면에 바로 가기가 생겨요 |
+| Windows 10/11 (64비트) | [포터블 (.zip)](https://github.com/hlog2e/desktop/releases/latest/download/AhaKey-Studio-Korean-Windows-Portable.zip) | 설치 없이 압축을 풀고 `AhaKeyStudioKR.exe`를 실행해요 |
+| macOS 13 이상 | [맥 앱 (.dmg)](https://github.com/hlog2e/desktop/releases/latest/download/AhaKey-Studio-macOS.dmg) | 원본 맥 앱을 그대로 빌드한 것이라 화면은 영어와 중국어예요 |
 
-[**Documentation**](#documentation) &nbsp;·&nbsp; [**SDK**](sdks/README.md) &nbsp;·&nbsp; [**⭐ Star History**](#star-history) &nbsp;·&nbsp; [**🤝 Contributing**](#contributing)
+모든 버전은 [릴리스 페이지](https://github.com/hlog2e/desktop/releases)에 있어요. Java와 BLE 드라이버가 함께 들어 있어서 따로 설치할 것은 없어요.
 
-<br/>
+## Windows에서 쓰는 법
 
-<!-- Release & CI -->
-<a href="https://github.com/AhakeyAI/desktop/releases"><img src="https://img.shields.io/github/v/release/AhakeyAI/desktop?include_prereleases&label=release&color=4F46E5" alt="Latest Release"></a>
-<a href="https://github.com/AhakeyAI/desktop/actions"><img src="https://img.shields.io/github/actions/workflow/status/AhakeyAI/desktop/release.yml?label=build" alt="Build"></a>
-<a href="https://github.com/AhakeyAI/desktop/commits/main"><img src="https://img.shields.io/github/last-commit/AhakeyAI/desktop?color=informational" alt="Last Commit"></a>
-<a href="https://github.com/AhakeyAI/desktop/stargazers"><img src="https://img.shields.io/github/stars/AhakeyAI/desktop?style=flat&color=yellow" alt="Stars"></a>
+1. 설치 파일을 실행해요. 게시자 서명이 없는 개인 빌드라 "Windows의 PC 보호" 창이 뜨면 **추가 정보 → 실행**을 눌러요.
+2. AhaKey Studio를 열어요. 처음부터 한국어로 열려요. 다른 언어는 **더 보기 → 언어 / Language**에서 바꿀 수 있어요.
+3. 키보드를 연결해요.
+   - **USB 케이블**: 꽂으면 바로 연결돼요.
+   - **블루투스**: Windows 설정 → Bluetooth 및 장치에서 키보드를 먼저 페어링해요. 그다음 앱 위쪽의 **BLE 드라이버** 칸을 눌러 BLE 드라이버 창을 열고, 목록에서 키보드를 선택해 연결해요. 한 번 연결하면 다음부터는 저절로 연결돼요. BLE 드라이버 칸을 5초 동안 누르고 있으면 드라이버가 꺼져요.
+4. 키 설정, 조명, OLED 화면, 승인 스위치를 바꾼 뒤 **설정 저장**을 눌러 키보드에 저장해요.
 
-<br/>
+### 연결이 자꾸 끊길 때
 
-<!-- Platforms & Tech -->
-<img src="https://img.shields.io/badge/macOS-12%2B-000000?logo=apple&logoColor=white" alt="macOS 12+">
-<img src="https://img.shields.io/badge/Windows-10%2F11-0078D6?logo=windows&logoColor=white" alt="Windows 10/11">
-<img src="https://img.shields.io/badge/Linux-Ubuntu-E95420?logo=ubuntu&logoColor=white" alt="Ubuntu">
-<img src="https://img.shields.io/badge/Swift-5.9%2B-F05138?logo=swift&logoColor=white" alt="Swift 5.9+">
-<img src="https://img.shields.io/badge/Java-17%2B-007396?logo=openjdk&logoColor=white" alt="Java 17+">
-<img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white" alt="Python 3.10+">
+**더 보기 → 연결 기록**을 열면 연결과 관련된 일이 시간순으로 보여요.
 
-</div>
+- **보기**를 `원본 데이터까지`로 바꾸면 키보드와 주고받은 데이터(16진수)까지 나와요. 줄을 선택하면 아래에 자세한 내용이 보여요.
+- `앱`, `BLE 드라이버`, `주고받은 데이터`로 출처를 고르고, 검색창에 `끊`, `0x9F`처럼 넣어 찾을 수 있어요.
+- 기록은 날짜별 파일로도 남아요(`%LOCALAPPDATA%\AhaKeyStudio\logs`). **기록 폴더 열기**로 지난 기록을 볼 수 있고, **파일로 저장**으로 보이는 기록만 따로 저장할 수 있어요.
 
-## <div align="center">Overview</div>
+## 원본과 다른 점
 
-AhaKey Desktop is the companion suite for the **AhaKey-X1 (Vibecoding Keyboard)**, with keyboard configuration, lever-gated AI approval, and an on-device voice agent on macOS.
+- Windows 앱의 화면, 알림, 오류 문구, 설치 프로그램, BLE 드라이버 창이 한국어예요. 글꼴은 맑은 고딕을 써요.
+- 연결 기록 창과 BLE 드라이버의 기록 파일을 더했어요.
+- 업데이트 확인은 이 저장소의 릴리스를 봐요. 공식 영어판으로 자동 업데이트해서 한국어판이 덮어써지는 일은 없어요.
+- 공식 앱과 따로 설치돼요(`AhaKeyStudioKR` 폴더). 둘을 함께 켜면 키보드 연결이 서로 부딪칠 수 있으니 하나만 켜 두세요.
 
-<a id="documentation"></a>
+## 안 되는 것
 
-## <div align="center">Documentation</div>
+- **펌웨어 업데이트**: 펌웨어 파일과 WCH 굽기 도구(WCHISP)가 공개되지 않아 들어 있지 않아요. 펌웨어는 키보드에 저장되니 업데이트할 때만 [공식 앱](https://ahakey.com)을 쓰면 돼요.
+- **키보드 OLED 화면의 한글**: 키보드 펌웨어가 영문, 숫자, 기호만 표시해요. 키 설명은 영어로 적어요.
+- **로컬 음성 인식의 한국어**: 내려받는 음성 모델이 중국어와 영어용이에요. 한국어 받아쓰기는 음성 키 동작을 `Windows 음성 입력(Win+H)`으로 두면 돼요.
+- **클라우드 계정과 AhaType**: 원래 서비스(중국 서버, 위챗 결제)를 그대로 써요.
 
-| Resource | What you'll find |
-|---|---|
-| [Project overview](docs/overview.md) | Features, clients, macOS highlights, build commands, and repository layout |
-| [Installation](docs/installation.md) · [Downloads](https://github.com/AhakeyAI/desktop/releases) | Build instructions and published installers |
-| [SDK overview](sdks/README.md) · [TypeScript guide](sdks/typescript/README.md) | Plugin development, API reference, and runnable examples |
-| [Architecture](docs/architecture.md) · [BLE protocol](docs/ble-protocol.md) | System design and keyboard communication |
-| [Contributing](CONTRIBUTING.md) | Bug reports, pull requests, and validation |
+## 직접 빌드하기
 
-<a id="star-history"></a>
+GitHub Actions(`.github/workflows/korean-build.yml`)가 `ko-v<버전>` 태그를 올릴 때마다 Windows 설치 파일, 포터블, 맥 앱을 만들어 릴리스에 올려요. 직접 빌드하려면 Windows에서 JavaFX가 들어 있는 JDK 17(Liberica Full), Maven, Visual Studio Build Tools, WiX 3이 필요해요.
 
-## <div align="center">⭐ Star History</div>
+```powershell
+msbuild BLE_tcp_bridge\BLE_tcp_driver.csproj /restore /p:Configuration=Release
+cd ahakeyconfig-win-java
+mvn clean package
+.\build-korean-windows.ps1 -JdkHome $env:JAVA_HOME -WixBin "C:\Program Files (x86)\WiX Toolset v3.14\bin"
+```
 
-If AhaKey helps your workflow, give the project a [star on GitHub](https://github.com/AhakeyAI/desktop)! Follow our community's growth in the chart below.
+번역 기준과 용어집은 [docs/ko/translation.md](docs/ko/translation.md)에 있어요. 원본 저장소의 README는 [docs/upstream-README.md](docs/upstream-README.md)에 옮겨 두었어요.
 
-<p align="center">
-  <a href="https://github.com/AhakeyAI/desktop/stargazers"><img src="https://img.shields.io/github/stars/AhakeyAI/desktop?style=social" alt="GitHub stars for AhakeyAI/desktop"></a>
-</p>
+## 라이선스
 
-<p align="center">
-  <a href="https://www.star-history.com/#AhakeyAI/desktop&amp;Date">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=AhakeyAI/desktop&amp;type=Date&amp;theme=dark">
-      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=AhakeyAI/desktop&amp;type=Date">
-      <img width="700" src="https://api.star-history.com/svg?repos=AhakeyAI/desktop&amp;type=Date" alt="Star History chart for AhakeyAI/desktop">
-    </picture>
-  </a>
-</p>
-
-<a id="contributing"></a>
-
-## <div align="center">🤝 Contributing</div>
-
-Help improve AhaKey through bug reports, feature ideas, documentation, translations, or code. Read the [Contributing Guide](CONTRIBUTING.md) to get started, and share feedback through [GitHub Issues](https://github.com/AhakeyAI/desktop/issues). Thanks to everyone who has contributed! 🙏
-
-<p align="center">
-  <a href="https://github.com/AhakeyAI/desktop/graphs/contributors">
-    <img src="https://contrib.rocks/image?repo=AhakeyAI/desktop" alt="AhaKey Desktop contributors">
-  </a>
-</p>
+원본과 같은 [Apache-2.0](LICENSE)이에요. 원본: [AhakeyAI/desktop](https://github.com/AhakeyAI/desktop)

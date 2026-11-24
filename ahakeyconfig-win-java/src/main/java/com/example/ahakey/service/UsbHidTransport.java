@@ -173,6 +173,7 @@ public class UsbHidTransport implements Closeable {
         if (frame.length > REPORT_SIZE - 2) {
             throw new IOException("USB command frame too large: " + frame.length);
         }
+        com.example.ahakey.diagnostics.ConnectionLog.tx("USB", com.example.ahakey.protocol.BleTcpPacket.WRITE_COMMAND, frame);
         byte[] payload = new byte[REPORT_SIZE];
         payload[0] = USB_COMMAND_PACKET;
         payload[1] = (byte) frame.length;
@@ -182,6 +183,7 @@ public class UsbHidTransport implements Closeable {
 
     public void sendData(byte[] data) throws IOException {
         Session session = requireActiveSession();
+        com.example.ahakey.diagnostics.ConnectionLog.tx("USB", com.example.ahakey.protocol.BleTcpPacket.WRITE_DATA, data);
         int offset = 0;
         while (offset < data.length) {
             int len = Math.min(REPORT_SIZE - 2, data.length - offset);

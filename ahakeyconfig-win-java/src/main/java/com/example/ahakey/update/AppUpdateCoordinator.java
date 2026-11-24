@@ -33,6 +33,14 @@ public final class AppUpdateCoordinator {
     private AppUpdateCoordinator() {}
 
     public static void onApplicationReady(Stage owner) {
+        if (KoreanReleaseCheck.isKoreanBuild()) {
+            long now = Instant.now().toEpochMilli();
+            if (now - PREFS.getLong(LAST_CHECK, 0) >= Duration.ofDays(1).toMillis()) {
+                PREFS.putLong(LAST_CHECK, now);
+                KoreanReleaseCheck.check(owner, false);
+            }
+            return;
+        }
         String installed = PREFS.get(INSTALLED_NOTICE, "");
         if (installed.equals(CURRENT.toString())) {
             PREFS.remove(INSTALLED_NOTICE);
@@ -50,6 +58,10 @@ public final class AppUpdateCoordinator {
     }
 
     public static void showAboutAndCheck(Stage owner) {
+        if (KoreanReleaseCheck.isKoreanBuild()) {
+            KoreanReleaseCheck.showAbout(owner);
+            return;
+        }
         Alert about = alert(owner, Alert.AlertType.INFORMATION,
             text(localize("关于与软件更新"), "About & Software Update"),
             "AhaKeyStudio " + CURRENT + "\nWindows 10/11 x64\n\n"
@@ -64,6 +76,10 @@ public final class AppUpdateCoordinator {
     }
 
     public static void check(Stage owner, boolean manual) {
+        if (KoreanReleaseCheck.isKoreanBuild()) {
+            KoreanReleaseCheck.check(owner, manual);
+            return;
+        }
         if (!CHECKING.compareAndSet(false, true)) {
             return;
         }
