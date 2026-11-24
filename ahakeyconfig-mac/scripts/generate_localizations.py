@@ -3,6 +3,7 @@
 
 import os
 import codecs
+import json
 
 # Keys are the current Chinese UI strings; values are the English translations.
 # For zh-Hans, values are equal to keys so the fallback behavior is explicit.
@@ -1320,7 +1321,16 @@ def main():
     zh_mapping = {k: ZH_OVERRIDES.get(k, k) for k in TRANSLATIONS}
     write_strings(os.path.join(resources_dir, "en.lproj", "Localizable.strings"), en_mapping)
     write_strings(os.path.join(resources_dir, "zh-Hans.lproj", "Localizable.strings"), zh_mapping)
-    print(f"Wrote {len(TRANSLATIONS)} strings to en.lproj and zh-Hans.lproj")
+    # Korean fork: translations_ko.json maps the Chinese keys to Korean; missing
+    # entries fall back to English rather than showing Chinese.
+    ko_path = os.path.join(root, "scripts", "translations_ko.json")
+    ko = {}
+    if os.path.exists(ko_path):
+        with open(ko_path, encoding="utf-8") as f:
+            ko = json.load(f)
+    ko_mapping = {k: ko.get(k) or v for k, v in TRANSLATIONS.items()}
+    write_strings(os.path.join(resources_dir, "ko.lproj", "Localizable.strings"), ko_mapping)
+    print(f"Wrote {len(TRANSLATIONS)} strings to en.lproj, zh-Hans.lproj and ko.lproj ({sum(1 for k in TRANSLATIONS if ko.get(k))} Korean)")
 
 
 if __name__ == "__main__":

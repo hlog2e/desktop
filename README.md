@@ -1,6 +1,6 @@
 # AhaKey Studio 한국어판
 
-AhaKey-X1(Vibecoding Keyboard)을 설정하는 프로그램 [AhaKey Studio](https://github.com/AhakeyAI/desktop)의 한국어 포크예요. Windows 앱의 모든 화면을 한국어로 옮겼고, 블루투스 연결이 끊길 때 원인을 볼 수 있는 연결 기록 창을 더했어요.
+AhaKey-X1(Vibecoding Keyboard)을 설정하는 프로그램 [AhaKey Studio](https://github.com/AhakeyAI/desktop)의 한국어 포크예요. Windows 앱과 맥 앱을 한국어로 옮겼고, Windows 앱에는 블루투스 연결이 끊길 때 원인을 볼 수 있는 연결 기록 창을 더했어요.
 
 ## 내려받기
 
@@ -8,7 +8,7 @@ AhaKey-X1(Vibecoding Keyboard)을 설정하는 프로그램 [AhaKey Studio](http
 |---|---|---|
 | Windows 10/11 (64비트) | [**설치 파일 (.exe)**](https://github.com/hlog2e/desktop/releases/latest/download/AhaKey-Studio-Korean-Setup.exe) | 설치하면 시작 메뉴와 바탕화면에 바로 가기가 생겨요 |
 | Windows 10/11 (64비트) | [포터블 (.zip)](https://github.com/hlog2e/desktop/releases/latest/download/AhaKey-Studio-Korean-Windows-Portable.zip) | 설치 없이 압축을 풀고 `AhaKeyStudioKR.exe`를 실행해요 |
-| macOS 13 이상 | [맥 앱 (.dmg)](https://github.com/hlog2e/desktop/releases/latest/download/AhaKey-Studio-macOS.dmg) | 원본 맥 앱을 그대로 빌드한 것이라 화면은 영어와 중국어예요 |
+| macOS 13 이상 | [맥 앱 (.dmg)](https://github.com/hlog2e/desktop/releases/latest/download/AhaKey-Studio-macOS.dmg) | 맥 시스템 언어가 한국어면 한국어로 열려요. 오른쪽 위 언어 메뉴에서 바꿀 수 있어요 |
 
 모든 버전은 [릴리스 페이지](https://github.com/hlog2e/desktop/releases)에 있어요. Java와 BLE 드라이버가 함께 들어 있어서 따로 설치할 것은 없어요.
 

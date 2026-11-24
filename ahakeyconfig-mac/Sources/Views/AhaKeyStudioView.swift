@@ -418,6 +418,7 @@ struct AhaKeyStudioView: View {
                 selection: AppLanguageInitializer.systemSelection
             )
             Divider()
+            languageOption("한국어", selection: "ko")
             languageOption("简体中文", selection: "zh-Hans")
             languageOption("English", selection: "en")
         } label: {
@@ -436,7 +437,11 @@ struct AhaKeyStudioView: View {
     }
 
     private func languageName(_ language: String) -> String {
-        language == "zh-Hans" ? "简体中文" : "English"
+        switch language {
+        case "ko": return "한국어"
+        case "zh-Hans": return "简体中文"
+        default: return "English"
+        }
     }
 
     private func languageOption(_ title: String, selection: String) -> some View {
